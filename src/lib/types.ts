@@ -18,6 +18,22 @@ export type OneRMs = Record<LiftId, number> & { bodyweight: number };
 
 export type BlockId = 1 | 2 | 3 | 4;
 
+export type RoutineId = "iron-16" | "mav-mrv-5";
+
+export interface RoutineMeta {
+  id: RoutineId;
+  name: string;
+  subtitle: string;
+  totalWeeks: number;
+}
+
+export interface DayMeta {
+  weekday: string;
+  weekdayShort: string;
+  session: string;
+  dayName: string;
+}
+
 export interface BlockMeta {
   id: BlockId;
   name: string;

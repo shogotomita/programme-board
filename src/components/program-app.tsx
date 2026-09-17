@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Check,
   ClipboardCopy,
-  Download,
   FileSpreadsheet,
   RotateCcw,
 } from "lucide-react";
@@ -33,38 +32,68 @@ import { copyTsv, downloadCsv, downloadXlsx } from "@/lib/export";
 import { withBase } from "@/lib/paths";
 import { LANDMARKS, MUSCLE_ORDER } from "@/lib/landmarks";
 import {
-  BLOCKS,
-  DAYS,
-  DAY_ORDER,
+  DEFAULT_ROUTINE_ID,
   DEFAULT_RMS,
-  MAIN_WARMUP,
-  REST_DAYS,
-  blockOf,
-  buildProgram,
-  weeklyVolumes,
-} from "@/lib/program";
+  ROUTINES,
+  getRoutine,
+  isRoutineId,
+} from "@/lib/routines";
 import type {
+  BlockMeta,
   Muscle,
   OneRMs,
   Phase,
   ProgramRow,
+  RoutineId,
   VolumeFlag,
   WeeklyVolume,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "iron-cycle-v2";
-const WEEK_STORAGE_KEY = "iron-cycle-week";
+const ROUTINE_STORAGE_KEY = "iron-cycle-routine";
+const LEGACY_WEEK_STORAGE_KEY = "iron-cycle-week";
 type TabId = "week" | "sheet" | "volume" | "guide";
 
-function readStoredWeek(): number {
+function weekStorageKey(routineId: RoutineId): string {
+  return `iron-cycle-week:${routineId}`;
+}
+
+function readStoredRoutine(): RoutineId {
+  if (typeof window === "undefined") return DEFAULT_ROUTINE_ID;
+  try {
+    const raw = window.localStorage.getItem(ROUTINE_STORAGE_KEY);
+    if (raw && isRoutineId(raw)) return raw;
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_ROUTINE_ID;
+}
+
+function readStoredWeek(routineId: RoutineId, totalWeeks: number): number {
   if (typeof window === "undefined") return 1;
   try {
-    const raw = window.localStorage.getItem(WEEK_STORAGE_KEY);
+    const keyed = window.localStorage.getItem(weekStorageKey(routineId));
+    const legacy =
+      routineId === "iron-16"
+        ? window.localStorage.getItem(LEGACY_WEEK_STORAGE_KEY)
+        : null;
+    const raw = keyed ?? legacy;
     const n = raw ? Number(raw) : 1;
-    return Number.isInteger(n) && n >= 1 && n <= 16 ? n : 1;
+    return Number.isInteger(n) && n >= 1 && n <= totalWeeks ? n : 1;
   } catch {
     return 1;
+  }
+}
+
+function writeStoredWeek(routineId: RoutineId, week: number) {
+  try {
+    window.localStorage.setItem(weekStorageKey(routineId), String(week));
+    if (routineId === "iron-16") {
+      window.localStorage.setItem(LEGACY_WEEK_STORAGE_KEY, String(week));
+    }
+  } catch {
+    /* ignore */
   }
 }
 
@@ -126,21 +155,43 @@ function weekdayJa(date = new Date()) {
 
 export function ProgramApp() {
   const [rms, setRms] = useState<OneRMs>(DEFAULT_RMS);
+  const [routineId, setRoutineId] = useState<RoutineId>(DEFAULT_ROUTINE_ID);
   const [week, setWeek] = useState(1);
   const [tab, setTab] = useState<TabId>("week");
-  const [done, setDone] = useState<Set<string>>(new Set());
+  const [doneByRoutine, setDoneByRoutine] = useState<
+    Partial<Record<RoutineId, string[]>>
+  >({});
   const [copied, setCopied] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [sheetAll, setSheetAll] = useState(true);
   const [isMd, setIsMd] = useState(true);
   const today = weekdayJa();
 
+  const routine = getRoutine(routineId);
+  const done = useMemo(
+    () => new Set(doneByRoutine[routineId] ?? []),
+    [doneByRoutine, routineId],
+  );
+
   function selectWeek(next: number) {
-    const clamped = Math.min(16, Math.max(1, Math.round(next)));
+    const clamped = Math.min(
+      routine.meta.totalWeeks,
+      Math.max(1, Math.round(next)),
+    );
     setWeek(clamped);
     setTab("week");
+    writeStoredWeek(routineId, clamped);
+  }
+
+  function selectRoutine(nextId: RoutineId) {
+    if (nextId === routineId) return;
+    const next = getRoutine(nextId);
+    const nextWeek = readStoredWeek(nextId, next.meta.totalWeeks);
+    setRoutineId(nextId);
+    setWeek(nextWeek);
+    setTab("week");
     try {
-      window.localStorage.setItem(WEEK_STORAGE_KEY, String(clamped));
+      window.localStorage.setItem(ROUTINE_STORAGE_KEY, nextId);
     } catch {
       /* ignore */
     }
@@ -149,13 +200,24 @@ export function ProgramApp() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       try {
+        const storedRoutine = readStoredRoutine();
+        const nextRoutine = getRoutine(storedRoutine);
+        setRoutineId(storedRoutine);
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw) as { rms?: OneRMs; done?: string[] };
+          const parsed = JSON.parse(raw) as {
+            rms?: OneRMs;
+            done?: string[];
+            doneByRoutine?: Partial<Record<RoutineId, string[]>>;
+          };
           if (parsed.rms) setRms({ ...DEFAULT_RMS, ...parsed.rms });
-          if (parsed.done) setDone(new Set(parsed.done));
+          if (parsed.doneByRoutine) {
+            setDoneByRoutine(parsed.doneByRoutine);
+          } else if (parsed.done) {
+            setDoneByRoutine({ "iron-16": parsed.done });
+          }
         }
-        setWeek(readStoredWeek());
+        setWeek(readStoredWeek(storedRoutine, nextRoutine.meta.totalWeeks));
       } catch {
         /* ignore */
       }
@@ -174,23 +236,30 @@ export function ProgramApp() {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ rms, done: [...done] }));
-  }, [rms, done, hydrated]);
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        rms,
+        doneByRoutine,
+        done: doneByRoutine["iron-16"] ?? [],
+      }),
+    );
+  }, [rms, doneByRoutine, hydrated]);
 
-  const rows = useMemo(() => buildProgram(rms), [rms]);
-  const volumes = useMemo(() => weeklyVolumes(rows), [rows]);
+  const rows = useMemo(() => routine.buildProgram(rms), [routine, rms]);
+  const volumes = useMemo(() => routine.weeklyVolumes(rows), [routine, rows]);
   const weekRows = rows.filter((row) => row.week === week);
   const weekVolume = volumes[week - 1];
-  const block = blockOf(week);
+  const block = routine.blockOf(week);
   const doneCount = weekRows.filter((row) => done.has(row.id)).length;
   const weekendToday = today === "土" || today === "日";
 
   function toggleDone(id: string) {
-    setDone((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+    setDoneByRoutine((prev) => {
+      const current = new Set(prev[routineId] ?? []);
+      if (current.has(id)) current.delete(id);
+      else current.add(id);
+      return { ...prev, [routineId]: [...current] };
     });
   }
 
@@ -202,14 +271,14 @@ export function ProgramApp() {
 
   function resetRms() {
     setRms(DEFAULT_RMS);
-    setDone(new Set());
+    setDoneByRoutine((prev) => ({ ...prev, [routineId]: [] }));
   }
 
   const tools = <ToolsPanel rms={rms} setRms={setRms} onReset={resetRms} />;
 
   const restCards = (
     <div className="grid gap-3 sm:grid-cols-2">
-      {REST_DAYS.map((rest) => (
+      {routine.restDays.map((rest) => (
         <Card
           key={rest.weekday}
           className={cn(
@@ -230,9 +299,9 @@ export function ProgramApp() {
 
   const sessionGrid = (
     <div className="grid gap-4 lg:grid-cols-2">
-      {DAY_ORDER.map((day) => {
+      {routine.dayOrder.map((day) => {
         const session = weekRows.filter((row) => row.dayId === day);
-        const meta = DAYS[day];
+        const meta = routine.days[day];
         const finished =
           session.length > 0 && session.every((row) => done.has(row.id));
         const isToday = meta.weekday === today;
@@ -285,7 +354,51 @@ export function ProgramApp() {
     <div className="min-h-full bg-background text-foreground">
       <header className="border-b border-border bg-card/50">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-4 sm:px-6 sm:py-5">
-          <h1 className="sr-only">16週トレーニング表</h1>
+          <h1 className="sr-only">{routine.meta.name}</h1>
+          <div
+            className="flex flex-wrap gap-1 print:hidden"
+            role="radiogroup"
+            aria-label="ルーティンを選択"
+          >
+            {ROUTINES.map((item) => {
+              const selected = item.meta.id === routineId;
+              return (
+                <label
+                  key={item.meta.id}
+                  className={cn(
+                    "relative flex cursor-pointer flex-col rounded-md px-3 py-2 ring-1 transition-colors",
+                    selected
+                      ? "bg-primary text-primary-foreground ring-primary"
+                      : "bg-card text-muted-foreground ring-border hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="program-routine"
+                    value={item.meta.id}
+                    checked={selected}
+                    onChange={() => selectRoutine(item.meta.id)}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                    aria-label={item.meta.name}
+                  />
+                  <span className="text-sm font-medium" aria-hidden="true">
+                    {item.meta.name}
+                  </span>
+                  <span
+                    className={cn(
+                      "text-[10px]",
+                      selected
+                        ? "text-primary-foreground/80"
+                        : "text-muted-foreground",
+                    )}
+                    aria-hidden="true"
+                  >
+                    {item.meta.totalWeeks}週 · {item.meta.subtitle}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
           <div className="flex flex-wrap items-start justify-end gap-3">
             <div className="hidden flex-wrap items-center justify-end gap-2 print:hidden md:flex">
               <Button onClick={() => downloadXlsx(rows, volumes, rms)}>
@@ -392,7 +505,7 @@ export function ProgramApp() {
               role="radiogroup"
               aria-label="週を選択"
             >
-              {BLOCKS.map((group) => {
+              {routine.blocks.map((group) => {
                 const active = week >= group.weeks[0] && week <= group.weeks[1];
                 return (
                   <div
@@ -488,7 +601,7 @@ export function ProgramApp() {
 
         {tab === "week" ? (
           <div className="space-y-4 pt-1 md:pt-2">
-            <p className="text-xs text-muted-foreground">{MAIN_WARMUP}</p>
+            <p className="text-xs text-muted-foreground">{routine.mainWarmup}</p>
             {weekendToday ? (
               <>
                 {restCards}
@@ -522,14 +635,16 @@ export function ProgramApp() {
           <div className="space-y-3 pt-1 md:pt-2">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-muted-foreground">
-                全16週・約{rows.length}行。Excelは6シート。Sheetsなら「貼る」で全行をコピー。
+                全{routine.meta.totalWeeks}週・約{rows.length}行。Excelは6シート。Sheetsなら「貼る」で全行をコピー。
               </p>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSheetAll((value) => !value)}
               >
-                {sheetAll ? "今週だけ表示" : "全16週を表示"}
+                {sheetAll
+                  ? "今週だけ表示"
+                  : `全${routine.meta.totalWeeks}週を表示`}
               </Button>
             </div>
             <SheetTable
@@ -553,7 +668,7 @@ export function ProgramApp() {
 
         {tab === "guide" ? (
           <div className="space-y-6 pt-1 md:pt-2">
-            <GuidePanel />
+            <GuidePanel blocks={routine.blocks} />
           </div>
         ) : null}
       </main>
@@ -882,7 +997,7 @@ function VolumeTable({
   );
 }
 
-function GuidePanel() {
+function GuidePanel({ blocks }: { blocks: BlockMeta[] }) {
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       <div className="max-w-prose space-y-8">
@@ -899,7 +1014,7 @@ function GuidePanel() {
         <section className="space-y-3">
           <h2 className="text-base font-medium">ブロック一覧</h2>
           <dl className="space-y-3">
-            {BLOCKS.map((block) => (
+            {blocks.map((block) => (
               <div key={block.id} className="border-b border-border/60 pb-3 last:border-0">
                 <dt className="font-medium">
                   {block.id}. {block.name}（{block.weeks[0]}–{block.weeks[1]}週）
