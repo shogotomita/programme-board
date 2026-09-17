@@ -1,11 +1,12 @@
-import { PHASE_LABEL, MUSCLE_LABEL } from "../landmarks";
+import { PHASE_LABEL } from "../landmarks";
+import { LOAD, muscleLabel } from "../muscle-load";
 import { formatKg, percentOf, roundTo2p5 } from "../rm";
 import type {
   BlockMeta,
   DayId,
   DayMeta,
   LiftId,
-  Muscle,
+  MuscleContribution,
   OneRMs,
   Phase,
   ProgramRow,
@@ -141,10 +142,6 @@ function restLabel(sec: number): string {
   return `${sec}秒`;
 }
 
-function muscleLabel(muscles: Muscle[]): string {
-  return muscles.map((m) => MUSCLE_LABEL[m]).join("・");
-}
-
 function accessoryKg(baseKg: number, week: number, stepKg = 2.5): number {
   if (week >= 5) return roundTo2p5(baseKg * 0.85);
   return roundTo2p5(baseKg + stepKg * (week - 1));
@@ -179,7 +176,7 @@ type Slot = {
   name: string;
   day: DayId;
   order: number;
-  muscles: Muscle[];
+  muscles: MuscleContribution[];
   restSec: number;
   notes: string;
   bjjNote: string;
@@ -213,7 +210,7 @@ const DAY_A_TEMPLATES: Template[] = [
     keyBase: "sq",
     name: "スクワット",
     order: 1,
-    muscles: ["quads"],
+    muscles: LOAD.squat,
     restSec: 180,
     notes: "深さは落とさない。2レップ余裕を残す。",
     bjjNote: "",
@@ -228,7 +225,7 @@ const DAY_A_TEMPLATES: Template[] = [
     keyBase: "bp",
     name: "ベンチプレス",
     order: 2,
-    muscles: ["chest"],
+    muscles: LOAD.bench,
     restSec: 180,
     notes: "肩甲骨を固定。トップまで伸ばし切る。",
     bjjNote: "",
@@ -243,7 +240,7 @@ const DAY_A_TEMPLATES: Template[] = [
     keyBase: "ohp",
     name: "オーバーヘッドプレス",
     order: 3,
-    muscles: ["shoulders"],
+    muscles: LOAD.ohp,
     restSec: 150,
     notes: "ストリクト。神経系疲労が大きいので%はメイン表より−5%。",
     bjjNote: "",
@@ -258,7 +255,7 @@ const DAY_A_TEMPLATES: Template[] = [
     keyBase: "lateral",
     name: "プレートサイドレイズ",
     order: 4,
-    muscles: ["shoulders"],
+    muscles: LOAD.lateral,
     restSec: 60,
     notes: "肩の高さ直前で止める。下部で伸張位を1秒。",
     bjjNote: "",
@@ -276,7 +273,7 @@ const DAY_A_TEMPLATES: Template[] = [
     keyBase: "cgbp",
     name: "クローズグリップベンチプレス",
     order: 5,
-    muscles: ["chest", "triceps"],
+    muscles: LOAD.cgbp,
     restSec: 120,
     notes: "握りは肩幅。メイン%より−7.5%の重量感。",
     bjjNote: "フレームとポストの肘伸展。",
@@ -298,7 +295,7 @@ const DAY_B_TEMPLATES: Template[] = [
     keyBase: "dl",
     name: "デッドリフト",
     order: 1,
-    muscles: ["posterior"],
+    muscles: LOAD.deadlift,
     restSec: 240,
     notes: "床を足で押す。ロックアウトで肩をすくめない。",
     bjjNote: "日曜BJJまで回復を残す。強化期は補助を先に切る。",
@@ -313,7 +310,7 @@ const DAY_B_TEMPLATES: Template[] = [
     keyBase: "chin",
     name: "懸垂（自重）",
     order: 2,
-    muscles: ["back", "biceps"],
+    muscles: LOAD.chin,
     restSec: 120,
     notes: "胸をバーへ。加重できるならRPEに合わせて加重。",
     bjjNote: "ガードリテンションの二頭。",
@@ -331,7 +328,7 @@ const DAY_B_TEMPLATES: Template[] = [
     keyBase: "incline",
     name: "インクラインバーベルベンチプレス",
     order: 3,
-    muscles: ["chest", "shoulders"],
+    muscles: LOAD.incline,
     restSec: 120,
     notes: "上胸。メイン%より−7.5%の重量感。",
     bjjNote: "",
@@ -350,7 +347,7 @@ const DAY_B_TEMPLATES: Template[] = [
     keyBase: "curl",
     name: "バーベルカール",
     order: 4,
-    muscles: ["biceps"],
+    muscles: LOAD.curl,
     restSec: 60,
     notes: "肘を体側。下ろし3秒。",
     bjjNote: "クローズドガードの引き。",
@@ -368,7 +365,7 @@ const DAY_B_TEMPLATES: Template[] = [
     keyBase: "shrug",
     name: "バーベルシュラッグ",
     order: 5,
-    muscles: ["traps"],
+    muscles: LOAD.shrug,
     restSec: 75,
     notes: "肩を耳へ。回転させない。1秒収縮。DL%で引かない。",
     bjjNote: "",
@@ -386,7 +383,7 @@ const DAY_B_TEMPLATES: Template[] = [
     keyBase: "nordic",
     name: "ノルディックハムストリングカール",
     order: 6,
-    muscles: ["posterior"],
+    muscles: LOAD.nordic,
     restSec: 90,
     notes: "自重。膝を支点にゆっくり下ろす。補助が必要ならバンドや手で調整。",
     bjjNote: "",

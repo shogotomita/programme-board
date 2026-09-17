@@ -2,9 +2,10 @@ import type { Muscle, Phase, VolumeFlag } from "./types";
 
 /**
  * Weekly hard-set landmarks (Renaissance Periodization + Schoenfeld 2016–2024).
- * MAV is the upper-middle of the productive range; "exceed MAV" means strictly
- * more direct sets than this number. MRV is the target for chest / shoulders /
- * traps on the week before each deload.
+ * Counts use fractional credit: primary/co-primary = 1.0, major secondary = 0.5
+ * (see muscle-load.ts). MAV is the upper-middle of the productive range; "exceed MAV"
+ * means strictly more credited sets than this number. MRV is the target for chest /
+ * shoulders / traps on the week before each deload.
  */
 export const LANDMARKS: Record<
   Muscle,

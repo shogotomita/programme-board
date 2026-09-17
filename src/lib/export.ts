@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import { LANDMARKS, MUSCLE_ORDER, PHASE_LABEL, phaseOf } from "./landmarks";
+import { formatSetCount } from "./muscle-load";
 import {
   BLOCKS,
   DAYS,
@@ -59,7 +60,7 @@ function volumeSheet(volumes: WeeklyVolume[]) {
       フェーズ: v.phaseLabel,
     };
     for (const m of MUSCLE_ORDER) {
-      row[LANDMARKS[m].label] = v.sets[m];
+      row[LANDMARKS[m].label] = Number(formatSetCount(v.sets[m]));
       row[`${LANDMARKS[m].label}判定`] = flagJa(v.flags[m]);
     }
     return row;

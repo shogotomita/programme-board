@@ -29,6 +29,7 @@ GitHub Pages 向けビルドは `NEXT_PUBLIC_BASE_PATH=/<repo>`。ワークフ�
 | パス | 役割 |
 | --- | --- |
 | `src/lib/program.ts` | 16週処方の SSOT。行生成と週次ボリューム |
+| `src/lib/muscle-load.ts` | 部位クレジット（主働1.0 / 二次0.5）の共有プリセット |
 | `src/lib/landmarks.ts` | 部位ごとの MEV / MAV / MRV |
 | `src/lib/rm.ts` | 2.5kg 丸め、%1RM、補助重量 |
 | `src/lib/types.ts` | 共有型 |
@@ -46,7 +47,7 @@ GitHub Pages 向けビルドは `NEXT_PUBLIC_BASE_PATH=/<repo>`。ワークフ�
 - 静的 export。Route Handler、cookies、サーバ専用 API は使わない
 - 重量は 2.5kg 刻み。記載 RPE と %1RM がずれたら RPE を優先
 - ボリュームはハードセットのみ。ウォームアップと BJJ は数えない
-- クローズグリップ／フロアプレスは胸と三頭の両方にカウント
+- 部位カウントは主働・共主働 1.0、主要二次 0.5（`muscle-load.ts`）。クローズグリップ／フロアは胸+三頭とも 1.0
 - 作業週は胸・肩・僧帽・二頭・三頭が MAV 超。優先部位は各ブロック3週目に MRV。四頭・後面は作業週 MEV 以上
 - 器具は懸垂バー・バーベル・プレート・ベンチのみ。ケーブルもダンベルも足さない
 - 月〜金がリフト。土は完全休養。日は BJJ のみ（ウエイト禁止）
