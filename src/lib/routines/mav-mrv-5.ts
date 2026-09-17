@@ -1,11 +1,12 @@
-import { PHASE_LABEL, MUSCLE_LABEL } from "../landmarks";
+import { PHASE_LABEL } from "../landmarks";
+import { LOAD, muscleLabel } from "../muscle-load";
 import { formatKg, percentOf, roundTo2p5 } from "../rm";
 import type {
   BlockMeta,
   DayId,
   DayMeta,
   LiftId,
-  Muscle,
+  MuscleContribution,
   OneRMs,
   Phase,
   ProgramRow,
@@ -107,10 +108,6 @@ function restLabel(sec: number): string {
   return `${sec}秒`;
 }
 
-function muscleLabel(muscles: Muscle[]): string {
-  return muscles.map((m) => MUSCLE_LABEL[m]).join("・");
-}
-
 function halfSets(sets: number): number {
   return Math.max(1, Math.round(sets / 2));
 }
@@ -151,7 +148,7 @@ type Slot = {
   name: string;
   day: DayId;
   order: number;
-  muscles: Muscle[];
+  muscles: MuscleContribution[];
   restSec: number;
   notes: string;
   bjjNote: string;
@@ -169,7 +166,7 @@ const SLOTS: Slot[] = [
     name: "ベンチプレス",
     day: "A",
     order: 1,
-    muscles: ["chest"],
+    muscles: LOAD.bench,
     restSec: 180,
     notes: "肥大セット。肩甲骨を固定し、2レップ余裕。",
     bjjNote: "",
@@ -193,7 +190,7 @@ const SLOTS: Slot[] = [
     name: "ベンチプレス",
     day: "A",
     order: 2,
-    muscles: ["chest"],
+    muscles: LOAD.bench,
     restSec: 210,
     notes: "強度セット。トップまで伸ばし切る。",
     bjjNote: "",
@@ -217,7 +214,7 @@ const SLOTS: Slot[] = [
     name: "オーバーヘッドプレス",
     day: "A",
     order: 3,
-    muscles: ["shoulders"],
+    muscles: LOAD.ohp,
     restSec: 150,
     notes: "ストリクト。脚の反動は使わない。",
     bjjNote: "",
@@ -241,7 +238,7 @@ const SLOTS: Slot[] = [
     name: "インクラインプレス",
     day: "A",
     order: 4,
-    muscles: ["chest", "shoulders"],
+    muscles: LOAD.incline,
     restSec: 120,
     notes: "上胸。肘は体のやや前方。バーベルまたはダンベル可。",
     bjjNote: "",
@@ -264,7 +261,7 @@ const SLOTS: Slot[] = [
     name: "プレートサイドレイズ",
     day: "A",
     order: 5,
-    muscles: ["shoulders"],
+    muscles: LOAD.lateral,
     restSec: 60,
     notes: "肩の高さ直前で止める。下部で伸張位を1秒。",
     bjjNote: "",
@@ -287,7 +284,7 @@ const SLOTS: Slot[] = [
     name: "デッドリフト",
     day: "B",
     order: 1,
-    muscles: ["posterior"],
+    muscles: LOAD.deadlift,
     restSec: 240,
     notes: "床を足で押す。ロックアウトで肩をすくめない。",
     bjjNote: "火曜実施。日曜BJJまで中2日以上空く。",
@@ -311,7 +308,7 @@ const SLOTS: Slot[] = [
     name: "チンアップ（アンダーグリップ）",
     day: "B",
     order: 2,
-    muscles: ["back", "biceps"],
+    muscles: LOAD.chin,
     restSec: 120,
     notes: "AMRAP。胸をバーへ。規定回数に届かなければレストポーズ。",
     bjjNote: "ガードリテンションの二頭。",
@@ -333,7 +330,7 @@ const SLOTS: Slot[] = [
     name: "ベントオーバーロウ",
     day: "B",
     order: 3,
-    muscles: ["back"],
+    muscles: LOAD.row,
     restSec: 120,
     notes: "体幹は床とほぼ平行。デッド後なので重量は欲張らない。",
     bjjNote: "プルとクローズの姿勢。",
@@ -356,7 +353,7 @@ const SLOTS: Slot[] = [
     name: "バーベルシュラッグ",
     day: "B",
     order: 4,
-    muscles: ["traps"],
+    muscles: LOAD.shrug,
     restSec: 75,
     notes: "肩を耳へ。回転させない。1秒収縮。",
     bjjNote: "",
@@ -380,7 +377,7 @@ const SLOTS: Slot[] = [
     name: "フロントスクワット",
     day: "C",
     order: 1,
-    muscles: ["quads"],
+    muscles: LOAD.frontSquat,
     restSec: 180,
     notes: "肘を高く、胴を立てたまま。",
     bjjNote: "",
@@ -404,7 +401,7 @@ const SLOTS: Slot[] = [
     name: "バックスクワット",
     day: "C",
     order: 2,
-    muscles: ["quads"],
+    muscles: LOAD.squat,
     restSec: 210,
     notes: "深さは落とさない。フロントのあとなので無理に伸ばさない。",
     bjjNote: "",
@@ -428,7 +425,7 @@ const SLOTS: Slot[] = [
     name: "ルーマニアンデッドリフト",
     day: "C",
     order: 3,
-    muscles: ["posterior"],
+    muscles: LOAD.rdl,
     restSec: 150,
     notes: "膝は軽く曲げ、ハムの伸びを感じたら戻す。",
     bjjNote: "ヒップヒンジ。",
@@ -451,7 +448,7 @@ const SLOTS: Slot[] = [
     name: "バーベルカール",
     day: "C",
     order: 4,
-    muscles: ["biceps"],
+    muscles: LOAD.curl,
     restSec: 60,
     notes: "脚日の腕仕上げ。肘を体側、下ろし3秒。",
     bjjNote: "クローズドガードの引き。",
@@ -473,7 +470,7 @@ const SLOTS: Slot[] = [
     name: "スカルクラッシャー",
     day: "C",
     order: 5,
-    muscles: ["triceps"],
+    muscles: LOAD.triceps,
     restSec: 75,
     notes: "額のやや後ろへ。肘を開かない。",
     bjjNote: "エビ・ポストの肘伸ばし。",
@@ -497,7 +494,7 @@ const SLOTS: Slot[] = [
     name: "ベンチプレス",
     day: "D",
     order: 1,
-    muscles: ["chest"],
+    muscles: LOAD.bench,
     restSec: 210,
     notes: "強度寄り。月曜肥大のあとなのでフォーム優先。",
     bjjNote: "",
@@ -521,7 +518,7 @@ const SLOTS: Slot[] = [
     name: "オーバーヘッドプレス",
     day: "D",
     order: 2,
-    muscles: ["shoulders"],
+    muscles: LOAD.ohp,
     restSec: 150,
     notes: "月曜OHPの2本目。やや軽くても軌道を守る。",
     bjjNote: "",
@@ -545,7 +542,7 @@ const SLOTS: Slot[] = [
     name: "チンアップ（アンダーグリップ）",
     day: "D",
     order: 3,
-    muscles: ["back", "biceps"],
+    muscles: LOAD.chin,
     restSec: 120,
     notes: "AMRAP。火曜よりセットは少なめ。",
     bjjNote: "",
@@ -567,7 +564,7 @@ const SLOTS: Slot[] = [
     name: "クローズグリップベンチ",
     day: "D",
     order: 4,
-    muscles: ["chest", "triceps"],
+    muscles: LOAD.cgbp,
     restSec: 120,
     notes: "握りは肩幅。三頭と内側胸。",
     bjjNote: "フレームとポストの肘伸展。",
@@ -590,7 +587,7 @@ const SLOTS: Slot[] = [
     name: "バーベルカール",
     day: "D",
     order: 5,
-    muscles: ["biceps"],
+    muscles: LOAD.curl,
     restSec: 60,
     notes: "水曜カールと合わせて週2。",
     bjjNote: "",
@@ -613,7 +610,7 @@ const SLOTS: Slot[] = [
     name: "フロントスクワット",
     day: "E",
     order: 1,
-    muscles: ["quads"],
+    muscles: LOAD.frontSquat,
     restSec: 180,
     notes: "水曜よりやや控えめでも可。深さは維持。",
     bjjNote: "",
@@ -637,7 +634,7 @@ const SLOTS: Slot[] = [
     name: "バックスクワット",
     day: "E",
     order: 2,
-    muscles: ["quads"],
+    muscles: LOAD.squat,
     restSec: 210,
     notes: "日曜BJJ前なのでRPEを守る。",
     bjjNote: "",
@@ -661,7 +658,7 @@ const SLOTS: Slot[] = [
     name: "ルーマニアンデッドリフト",
     day: "E",
     order: 3,
-    muscles: ["posterior"],
+    muscles: LOAD.rdl,
     restSec: 150,
     notes: "ハムの伸びを優先。腰を丸めない。",
     bjjNote: "",
@@ -684,7 +681,7 @@ const SLOTS: Slot[] = [
     name: "プレートサイドレイズ",
     day: "E",
     order: 4,
-    muscles: ["shoulders"],
+    muscles: LOAD.lateral,
     restSec: 60,
     notes: "下半身日の肩分散枠。軽めでも可。",
     bjjNote: "",
@@ -706,7 +703,7 @@ const SLOTS: Slot[] = [
     name: "バーベルシュラッグ",
     day: "E",
     order: 5,
-    muscles: ["traps"],
+    muscles: LOAD.shrug,
     restSec: 75,
     notes: "RDL後の僧帽仕上げ。収縮1秒。",
     bjjNote: "",

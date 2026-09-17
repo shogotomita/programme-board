@@ -1,11 +1,15 @@
 import {
   LANDMARKS as LANDMARKS,
-  MUSCLE_LABEL as MUSCLE_LABEL,
   MUSCLE_ORDER as MUSCLE_ORDER,
   PHASE_LABEL as PHASE_LABEL,
   flagFor as flagFor,
   phaseOf as phaseOf,
 } from "./landmarks";
+import {
+  LOAD,
+  accumulateSets,
+  muscleLabel,
+} from "./muscle-load";
 import {
   accessoryLoad as accessoryLoad,
   formatKg as formatKg,
@@ -18,6 +22,7 @@ import type {
   DayId,
   LiftId,
   Muscle,
+  MuscleContribution,
   OneRMs as OneRMs,
   Phase,
   ProgramRow as ProgramRow,
@@ -138,10 +143,6 @@ function restLabel(sec: number): string {
     return s ? `${m}分${s}秒` : `${m}分`;
   }
   return `${sec}秒`;
-}
-
-function muscleLabel(muscles: Muscle[]): string {
-  return muscles.map((m) => MUSCLE_LABEL[m]).join("・");
 }
 
 function addedPullupKg(week: number): number {
@@ -289,7 +290,7 @@ type AccDef = {
   name: string;
   day: DayId;
   order: number;
-  muscles: Muscle[];
+  muscles: MuscleContribution[];
   restSec: number;
   notes: string;
   bjjNote: string;
@@ -304,7 +305,7 @@ const ACCESSORIES: AccDef[] = [
     name: "フロントスクワット",
     day: "A",
     order: 2,
-    muscles: ["quads"],
+    muscles: LOAD.frontSquat,
     restSec: 180,
     notes:
       "週2四頭の月。クリーングリップかクロスアーム。肘を高く、胴を立てたまま。木曜バックと合わせてMEV以上。",
@@ -321,7 +322,7 @@ const ACCESSORIES: AccDef[] = [
     name: "クローズグリップベンチ",
     day: "A",
     order: 3,
-    muscles: ["chest", "triceps"],
+    muscles: LOAD.cgbp,
     restSec: 120,
     notes: "握りは肩幅。肘を体側に寄せ、三頭と内側胸を狙う。",
     bjjNote: "フレームとポストの肘伸展に直結。",
@@ -337,7 +338,7 @@ const ACCESSORIES: AccDef[] = [
     name: "懸垂（プロネイト）",
     day: "A",
     order: 4,
-    muscles: ["back", "biceps"],
+    muscles: LOAD.chin,
     restSec: 120,
     notes: "胸をバーに近づける。8回できなければレストポーズで規定回数を揃える。加重はプレートを足に挟むかリュック。",
     bjjNote: "ガード引き込み・クリメ。最終セットは顎オーバーで3秒保持。",
@@ -350,7 +351,7 @@ const ACCESSORIES: AccDef[] = [
     name: "プレートサイドレイズ",
     day: "A",
     order: 5,
-    muscles: ["shoulders"],
+    muscles: LOAD.lateral,
     restSec: 60,
     notes: "小指側を少し上げ、肩の高さ直前で止める。下部で伸張位を1秒。週内に分散した肩の1本。",
     bjjNote: "",
@@ -366,7 +367,7 @@ const ACCESSORIES: AccDef[] = [
     name: "バーベルシュラッグ",
     day: "A",
     order: 6,
-    muscles: ["traps"],
+    muscles: LOAD.shrug,
     restSec: 75,
     notes: "肩を耳に近づける。回転させない。1秒収縮。ストラップ可。僧帽は週4日に薄く分散。",
     bjjNote: "襟を持つ姿勢の維持。",
@@ -382,7 +383,7 @@ const ACCESSORIES: AccDef[] = [
     name: "ベントオーバーロウ",
     day: "B",
     order: 2,
-    muscles: ["back"],
+    muscles: LOAD.row,
     restSec: 120,
     notes: "体幹は床とほぼ平行。バーをお腹に引く。デッドの後なので重量は欲張らない。",
     bjjNote: "プルとクローズの姿勢。",
@@ -398,7 +399,7 @@ const ACCESSORIES: AccDef[] = [
     name: "チンアップ（アンダーグリップ）",
     day: "B",
     order: 3,
-    muscles: ["back", "biceps"],
+    muscles: LOAD.chin,
     restSec: 120,
     notes: "手のひら向き。胸をバーへ。8回未満ならレストポーズ。",
     bjjNote: "ガードリテンションの二頭。最終セットは10秒ぶら下がり。",
@@ -411,7 +412,7 @@ const ACCESSORIES: AccDef[] = [
     name: "バーベルアップライトロウ",
     day: "B",
     order: 4,
-    muscles: ["shoulders", "traps"],
+    muscles: LOAD.upright,
     restSec: 75,
     notes: "握りは肩幅以上。バーは鎖骨まで。狭い握りは肩の衝突リスクがあるので避ける。",
     bjjNote: "",
@@ -427,7 +428,7 @@ const ACCESSORIES: AccDef[] = [
     name: "バーベルシュラッグ",
     day: "B",
     order: 5,
-    muscles: ["traps"],
+    muscles: LOAD.shrug,
     restSec: 75,
     notes: "デッドの後なので重量はDay Aより2.5〜5kg軽くてもよい。収縮を優先。セットは抑えめ（他日と分散）。",
     bjjNote: "",
@@ -443,7 +444,7 @@ const ACCESSORIES: AccDef[] = [
     name: "プレートサイドレイズ",
     day: "C",
     order: 2,
-    muscles: ["shoulders"],
+    muscles: LOAD.lateral,
     restSec: 60,
     notes: "やや前傾。プレートの縁を持つ。パンプ優先で休憩は短く。フロント／リアは木曜へ移し、この日の肩集中を避ける。",
     bjjNote: "",
@@ -459,7 +460,7 @@ const ACCESSORIES: AccDef[] = [
     name: "スカルクラッシャー",
     day: "C",
     order: 3,
-    muscles: ["triceps"],
+    muscles: LOAD.triceps,
     restSec: 75,
     notes: "バーベルを額のやや後ろへ。肘を開かない。肩を少し伸ばして長頭を使う。月曜から移し、三頭を週内分散。",
     bjjNote: "エビ・ポストの肘伸ばし持久。",
@@ -475,7 +476,7 @@ const ACCESSORIES: AccDef[] = [
     name: "プレートオーバーヘッドエクステンション",
     day: "C",
     order: 4,
-    muscles: ["triceps"],
+    muscles: LOAD.triceps,
     restSec: 75,
     notes: "プレートを両手で持ち、肘を耳の横に固定して頭の後ろへ。三頭長頭。",
     bjjNote: "頭上からのフレーム維持。",
@@ -491,7 +492,7 @@ const ACCESSORIES: AccDef[] = [
     name: "バーベルカール",
     day: "C",
     order: 5,
-    muscles: ["biceps"],
+    muscles: LOAD.curl,
     restSec: 60,
     notes: "肘を体側。下ろし3秒。金曜の高レップと分け、二頭を週2以上に分散。",
     bjjNote: "クローズドガードの引き。",
@@ -507,7 +508,7 @@ const ACCESSORIES: AccDef[] = [
     name: "ルーマニアンデッドリフト",
     day: "D",
     order: 2,
-    muscles: ["posterior"],
+    muscles: LOAD.rdl,
     restSec: 150,
     notes:
       "膝は軽く曲げ、バーは腿に沿わせて下ろす。ハムの伸びを感じたら戻す。腰を丸めない。デッドと合わせて後面をMEV〜MAVへ。",
@@ -524,7 +525,7 @@ const ACCESSORIES: AccDef[] = [
     name: "スポトプレス",
     day: "D",
     order: 3,
-    muscles: ["chest"],
+    muscles: LOAD.spoto,
     restSec: 120,
     notes: "胸の2〜3cm上で1秒停止。大胸筋の緊張を切らない。ピークMRV週はメインのセット不足をここで補う。",
     bjjNote: "",
@@ -540,7 +541,7 @@ const ACCESSORIES: AccDef[] = [
     name: "プレートフロントレイズ",
     day: "D",
     order: 4,
-    muscles: ["shoulders"],
+    muscles: LOAD.lateral,
     restSec: 60,
     notes: "腕はほぼ伸ばしたまま、顔の高さまで。反動禁止。水曜OHP日から移し、肩の日内集中を避ける。",
     bjjNote: "",
@@ -556,7 +557,7 @@ const ACCESSORIES: AccDef[] = [
     name: "プレートリアデルトフライ",
     day: "D",
     order: 5,
-    muscles: ["shoulders"],
+    muscles: LOAD.rearDelt,
     restSec: 60,
     notes: "前傾し、小指側から開く。僧帽で引かない。重量より位置。水曜から移して肩を分散。",
     bjjNote: "姿勢を保つ肩甲骨周り。",
@@ -572,7 +573,7 @@ const ACCESSORIES: AccDef[] = [
     name: "バーベルシュラッグ",
     day: "D",
     order: 6,
-    muscles: ["traps"],
+    muscles: LOAD.shrug,
     restSec: 75,
     notes: "収縮1秒。首を前に出さない。僧帽の週内分散枠。",
     bjjNote: "",
@@ -588,7 +589,7 @@ const ACCESSORIES: AccDef[] = [
     name: "フロアプレス",
     day: "E",
     order: 1,
-    muscles: ["chest", "triceps"],
+    muscles: LOAD.floor,
     restSec: 120,
     notes: "ブロック1-2はフロアプレス（上腕が床についたら1秒）。ブロック3-4は胸で1秒ポーズベンチ。金曜は重量より精度。",
     bjjNote: "胸の圧と三頭のロックアウト。日曜ロールの前々日なのでRPEを守る。",
@@ -605,7 +606,7 @@ const ACCESSORIES: AccDef[] = [
     name: "懸垂（筋持久）",
     day: "E",
     order: 2,
-    muscles: ["back", "biceps"],
+    muscles: LOAD.chin,
     restSec: 60,
     notes: "休憩を短くする。最後のセットはAMRAP（1レップ残し）。加重は控えめ。",
     bjjNote: "ロール中の引き持久。試合週はAMRAPをやめる。",
@@ -622,7 +623,7 @@ const ACCESSORIES: AccDef[] = [
     name: "プレートサイドレイズ",
     day: "E",
     order: 3,
-    muscles: ["shoulders"],
+    muscles: LOAD.lateral,
     restSec: 60,
     notes: "この日は仕上げ。少し軽いプレートでも可。片側ずつでもよい。",
     bjjNote: "",
@@ -638,7 +639,7 @@ const ACCESSORIES: AccDef[] = [
     name: "バーベルカール（高レップ）",
     day: "E",
     order: 4,
-    muscles: ["biceps"],
+    muscles: LOAD.curl,
     restSec: 45,
     notes: "BJJ用密度。休憩45秒。水曜カールと分け、金曜は高レップ寄り。",
     bjjNote: "クローズドガードの引き、襟制御。試合週はRPE7で打切り。",
@@ -654,7 +655,7 @@ const ACCESSORIES: AccDef[] = [
     name: "ナロープッシュアップ",
     day: "E",
     order: 5,
-    muscles: ["chest", "triceps"],
+    muscles: LOAD.cgbp,
     restSec: 45,
     notes: "手は肩幅より狭く。胸を床すれすれまで。途中で止まったらレストポーズで規定回数へ。",
     bjjNote: "胸と三頭の密度。ガードパスの圧。最後のセットは6秒フレーム姿勢。",
@@ -667,7 +668,7 @@ const ACCESSORIES: AccDef[] = [
     name: "バーベルシュラッグ",
     day: "E",
     order: 6,
-    muscles: ["traps"],
+    muscles: LOAD.shrug,
     restSec: 75,
     notes: "収縮1秒。首を前に出さない。金曜は中重量。セットは他日と分散した残り枠。",
     bjjNote: "",
@@ -694,14 +695,14 @@ function makeMainRow(
   const kg = percentOf(rms[lift], spec.pct);
   const phase = phaseOf(week);
   const block = blockOf(week);
-  const muscles: Muscle[] =
+  const muscles: MuscleContribution[] =
     lift === "bench"
-      ? ["chest"]
+      ? [...LOAD.bench]
       : lift === "deadlift"
-        ? ["posterior"]
+        ? [...LOAD.deadlift]
         : lift === "squat"
-          ? ["quads"]
-          : ["shoulders"];
+          ? [...LOAD.squat]
+          : [...LOAD.ohp];
   const meta = DAYS[day];
   const pctDisplay = Math.round(spec.pct * 1000) / 10;
   return {
@@ -819,9 +820,7 @@ export function weeklyVolumes(
       number
     >;
     for (const row of list) {
-      for (const m of row.muscles) {
-        sets[m] += row.sets;
-      }
+      accumulateSets(sets, row.muscles, row.sets);
     }
     const sample = list[0];
     const phase = sample?.phase ?? phaseOf(week);

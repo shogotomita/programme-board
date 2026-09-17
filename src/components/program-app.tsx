@@ -31,6 +31,7 @@ import { EXERCISE_GUIDE, SCIENCE_SECTIONS } from "@/lib/content";
 import { copyTsv, downloadCsv, downloadXlsx } from "@/lib/export";
 import { withBase } from "@/lib/paths";
 import { LANDMARKS, MUSCLE_ORDER } from "@/lib/landmarks";
+import { formatSetCount } from "@/lib/muscle-load";
 import {
   DEFAULT_ROUTINE_ID,
   DEFAULT_RMS,
@@ -763,15 +764,17 @@ function ExerciseRow({
           )}
         </p>
         <div className="flex flex-wrap items-center gap-1">
-          {row.muscles.map((muscle) => (
+          {row.muscles.map((contrib) => (
             <span
-              key={muscle}
+              key={contrib.muscle}
               className={cn(
                 "rounded-full px-2 py-0.5 text-[10px] ring-1",
-                MUSCLE_TONE[muscle],
+                MUSCLE_TONE[contrib.muscle],
+                contrib.weight < 1 && "opacity-70",
               )}
             >
-              {LANDMARKS[muscle].label}
+              {LANDMARKS[contrib.muscle].label}
+              {contrib.weight < 1 ? "×0.5" : ""}
             </span>
           ))}
           <span className="text-[10px] text-muted-foreground">休憩 {row.restSec}</span>
@@ -886,7 +889,7 @@ function VolumeStrip({ volume }: { volume: WeeklyVolume }) {
       <CardHeader>
         <CardTitle className="font-medium">今週のセット数</CardTitle>
         <CardDescription>
-          作業週は胸・肩・僧帽・二頭・三頭がMAVを超える。MRV週は胸・肩・僧帽が上限。四頭は月フロント＋木バックでMEV以上、後面はデッド＋RDL。肩・僧帽・腕は日内集中を避け週内に分散。
+          主働は1.0、主要二次は0.5で換算。作業週は胸・肩・僧帽・二頭・三頭がMAVを超える。MRV週は胸・肩・僧帽が上限。四頭は月フロント＋木バックでMEV以上、後面はデッド＋RDL。肩・僧帽・腕は日内集中を避け週内に分散。
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -900,7 +903,7 @@ function VolumeStrip({ volume }: { volume: WeeklyVolume }) {
               <div className="flex items-baseline justify-between text-xs">
                 <span>{label}</span>
                 <span className={cn("font-mono", FLAG_TONE[flag])}>
-                  {sets} · {FLAG_JA[flag]}
+                  {formatSetCount(sets)} · {FLAG_JA[flag]}
                 </span>
               </div>
               <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
@@ -986,7 +989,7 @@ function VolumeTable({
                       "font-semibold",
                   )}
                 >
-                  {volume.sets[muscle]}
+                  {formatSetCount(volume.sets[muscle])}
                 </TableCell>
               ))}
             </TableRow>

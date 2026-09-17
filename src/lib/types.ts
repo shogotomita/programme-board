@@ -8,6 +8,9 @@ export type Muscle =
   | "posterior"
   | "quads";
 
+/** Hard-set credit toward a muscle (1 = primary/co-primary, 0.5 = major secondary). */
+export type MuscleContribution = { muscle: Muscle; weight: 1 | 0.5 };
+
 export type Phase = "mav" | "build" | "mrv" | "deload";
 
 export type DayId = "A" | "B" | "C" | "D" | "E";
@@ -74,7 +77,7 @@ export interface ProgramRow {
   percent1RM: number | null;
   rpe: number;
   restSec: string;
-  muscles: Muscle[];
+  muscles: MuscleContribution[];
   muscleLabel: string;
   notes: string;
   bjjNote: string;
