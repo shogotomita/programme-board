@@ -18,7 +18,7 @@ export type OneRMs = Record<LiftId, number> & { bodyweight: number };
 
 export type BlockId = 1 | 2 | 3 | 4;
 
-export type RoutineId = "iron-16" | "mav-mrv-5";
+export type RoutineId = "iron-16" | "mav-mrv-5" | "ab-meso-5";
 
 export interface RoutineMeta {
   id: RoutineId;
