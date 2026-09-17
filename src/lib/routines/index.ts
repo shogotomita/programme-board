@@ -22,6 +22,7 @@ import type {
   RoutineMeta,
   WeeklyVolume,
 } from "../types";
+import * as abMeso5 from "./ab-meso-5";
 import * as mavMrv5 from "./mav-mrv-5";
 
 export type RoutineDefinition = {
@@ -70,7 +71,20 @@ const mav5: RoutineDefinition = {
   weeklyVolumes: (rows) => weeklyVolumes(rows, mavMrv5.META.totalWeeks),
 };
 
-export const ROUTINES: RoutineDefinition[] = [iron16, mav5];
+const ab5: RoutineDefinition = {
+  meta: abMeso5.META,
+  blocks: abMeso5.BLOCKS,
+  days: abMeso5.DAYS,
+  dayOrder: abMeso5.DAY_ORDER,
+  restDays: abMeso5.REST_DAYS,
+  mainWarmup: MAIN_WARMUP,
+  buildProgram: abMeso5.buildProgram,
+  phaseOf: abMeso5.phaseOf,
+  blockOf: abMeso5.blockOf,
+  weeklyVolumes: (rows) => weeklyVolumes(rows, abMeso5.META.totalWeeks),
+};
+
+export const ROUTINES: RoutineDefinition[] = [iron16, mav5, ab5];
 
 export const DEFAULT_ROUTINE_ID: RoutineId = "iron-16";
 
@@ -79,7 +93,7 @@ export function getRoutine(id: RoutineId): RoutineDefinition {
 }
 
 export function isRoutineId(value: string): value is RoutineId {
-  return value === "iron-16" || value === "mav-mrv-5";
+  return value === "iron-16" || value === "mav-mrv-5" || value === "ab-meso-5";
 }
 
 export { DEFAULT_RMS };
