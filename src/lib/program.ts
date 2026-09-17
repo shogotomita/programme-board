@@ -801,7 +801,10 @@ export function buildProgram(rms: OneRMs = DEFAULT_RMS): ProgramRow[] {
   });
 }
 
-export function weeklyVolumes(rows: ProgramRow[]): WeeklyVolume[] {
+export function weeklyVolumes(
+  rows: ProgramRow[],
+  totalWeeks = TOTAL_WEEKS,
+): WeeklyVolume[] {
   const byWeek = new Map<number, ProgramRow[]>();
   for (const row of rows) {
     const list = byWeek.get(row.week) ?? [];
@@ -809,7 +812,7 @@ export function weeklyVolumes(rows: ProgramRow[]): WeeklyVolume[] {
     byWeek.set(row.week, list);
   }
   const out: WeeklyVolume[] = [];
-  for (let week = 1; week <= TOTAL_WEEKS; week++) {
+  for (let week = 1; week <= totalWeeks; week++) {
     const list = byWeek.get(week) ?? [];
     const sets = Object.fromEntries(MUSCLE_ORDER.map((m) => [m, 0])) as Record<
       Muscle,
@@ -820,17 +823,19 @@ export function weeklyVolumes(rows: ProgramRow[]): WeeklyVolume[] {
         sets[m] += row.sets;
       }
     }
-    const phase = phaseOf(week);
-    const block = blockOf(week);
+    const sample = list[0];
+    const phase = sample?.phase ?? phaseOf(week);
+    const blockId = sample?.block ?? blockOf(week).id;
+    const blockName = sample?.blockName ?? blockOf(week).name;
     const flags = Object.fromEntries(
       MUSCLE_ORDER.map((m) => [m, flagFor(m, sets[m], phase)]),
     ) as WeeklyVolume["flags"];
     out.push({
       week,
       phase,
-      phaseLabel: PHASE_LABEL[phase],
-      block: block.id,
-      blockName: block.name,
+      phaseLabel: sample?.phaseLabel ?? PHASE_LABEL[phase],
+      block: blockId,
+      blockName,
       sets,
       flags,
     });
